@@ -1,0 +1,7 @@
+!node_modules/
+node_modules/*
+!node_modules/@mapbox/
+node_modules/@mapbox/vt2geojson/node_modules/
+!node_modules/browserify-zlib
+dist/
+package-lock.json

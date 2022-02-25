@@ -1,0 +1,35 @@
+{
+  "name": "3d-tiles-webpack",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "webpack",
+    "dev": "webpack serve"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "browserify-zlib": "^0.2.0",
+    "file-loader": "^6.2.0",
+    "html-webpack-plugin": "^5.5.0",
+    "process": "^0.11.10",
+    "stream-browserify": "^3.0.0",
+    "webpack": "^5.69.1",
+    "webpack-cli": "^4.9.2",
+    "webpack-dev-server": "^4.7.4"
+  },
+  "dependencies": {
+    "@mapbox/vt2geojson": "^1.1.5",
+    "axios": "^0.26.0",
+    "Buffer": "^0.0.0",
+    "earcut": "^2.2.3",
+    "fs": "^0.0.1-security",
+    "install": "^0.13.0",
+    "node-fetch": "^2.6.7",
+    "npm": "^8.5.1",
+    "three": "^0.138.0",
+    "util": "^0.12.4",
+    "zlib": "^1.0.5"
+  }
+}
