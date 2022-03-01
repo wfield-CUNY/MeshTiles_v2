@@ -24,6 +24,8 @@ export function latlngzoom2tileStr(lat, lon, zoom) {
     }
 }
 
+
+
 export function getTile(zxy) {
     const mapboxUrl = `https://api.mapbox.com/v4/mapbox.mapbox-streets-v8/${zxy}.vector.pbf?sku=101rbwZejdUDN&access_token=pk.eyJ1Ijoid2ZpZWxkLWN1bnkiLCJhIjoiY2p6YTJnN2lzMDB1aDNicm9qbzN6d2F5dCJ9.eOQlPpQf5uyOJANVWurDDA`
     // remote file
@@ -61,3 +63,4 @@ export function getTile(zxy) {
 }
 
 export let tilecache = {};
+export const valueMap = (value, x1, y1, x2, y2) => (value - x1) * (y2 - x2) / (y1 - x1) + x2;

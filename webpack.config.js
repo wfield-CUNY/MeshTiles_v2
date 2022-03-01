@@ -21,7 +21,7 @@ module.exports = {
         },
         alias: {
             stream: require.resolve('stream-browserify'),
-            zlib: require.resolve('browserify-zlib'),  
+            zlib: require.resolve('browserify-zlib')
           }
     },
     mode: 'development',

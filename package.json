@@ -22,7 +22,6 @@
   "dependencies": {
     "@mapbox/vt2geojson": "^1.1.5",
     "axios": "^0.26.0",
-    "Buffer": "^0.0.0",
     "earcut": "^2.2.3",
     "fs": "^0.0.1-security",
     "install": "^0.13.0",
