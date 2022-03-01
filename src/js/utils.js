@@ -35,19 +35,19 @@ export function getTile(zxy) {
             layer: 'landuse'
         }, function (err, result) {
             if (err) throw err;
-           // console.log(result.features)
+            // console.log(result.features)
             let features = {}
             result.features.forEach((feature) => {
                 features[feature.properties.type] = features[feature.properties.type] || [];
                 if (feature.geometry.type.toLowerCase() !== 'multipolygon') {
                     var data = earcut.flatten(feature.geometry.coordinates);
                     var triangles = earcut(data.vertices, data.holes, data.dimensions);
-                    features[feature.properties.type].push( { data, triangles, type: feature.geometry.type })
-                }else{
-                    for(let p=0; p<feature.geometry.coordinates.length; p++){
+                    features[feature.properties.type].push({ data, triangles, type: feature.geometry.type })
+                } else {
+                    for (let p = 0; p < feature.geometry.coordinates.length; p++) {
                         var data = earcut.flatten(feature.geometry.coordinates[p]);
                         var triangles = earcut(data.vertices, data.holes, data.dimensions);
-                        features[feature.properties.type].push( { data, triangles, type: feature.geometry.type })
+                        features[feature.properties.type].push({ data, triangles, type: feature.geometry.type })
                     }
                 }
             })
@@ -57,10 +57,16 @@ export function getTile(zxy) {
         });
 
     });
-
-
-    //return zxy
 }
 
 export let tilecache = {};
+export function resetTileCache() {
+    Object.keys(tilecache).forEach((zParam) => {
+        Object.keys(zParam).forEach((xParam) => {
+            delete tilecache[zParam][xParam]
+        })
+        delete tilecache[zParam]
+    });
+    tilecache = {}
+}
 export const valueMap = (value, x1, y1, x2, y2) => (value - x1) * (y2 - x2) / (y1 - x1) + x2;

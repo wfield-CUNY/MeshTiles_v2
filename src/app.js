@@ -3,8 +3,9 @@ import * as THREE from 'three';
 import { MapControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { Vector3 } from 'three';
 import img from './extras/8kearth.jpg';
+import { Object3D } from 'three';
+import { Vector2 } from 'three';
 
-const ZOOM = '5';
 
 const scene = new THREE.Scene();
 let camera = new THREE.PerspectiveCamera(15, window.innerWidth / window.innerHeight, 1, 1000);
@@ -33,13 +34,26 @@ const boxDebug = new THREE.BoxGeometry(1, 1, 1);
 const debugMat = new THREE.MeshBasicMaterial({ color: '#f00' });
 const debugMesh = new THREE.Mesh(boxDebug, debugMat)
 //scene.add(debugMesh)
-let pending = [];
-let lastIn = []
 
+let ZOOM = '5';
+let pending = [];
+let lastIn = [];
+let _zoom = ZOOM;
+
+let map = new Object3D();
+scene.add(map)
 controls.addEventListener('change', () => {
     //TODO: MOVE ALL THIS INTO UTILS OR A NEW CLASS
-    const _zoom = Math.max(Math.round(utils.valueMap(camera.position.y, 1, 40, 12, 1)),0);
-
+    _zoom = Math.max(Math.round(utils.valueMap(camera.position.y, 3, 40, 10, 1))-1, 0).toString();
+    if (_zoom !== ZOOM) {
+        ZOOM = _zoom;
+        pending = [];
+        lastIn = [];
+        utils.resetTileCache();
+        console.log(ZOOM)
+        map.clear();
+        //return;
+    }
     raycaster.setFromCamera(new THREE.Vector2(), camera);
     const intersects = raycaster.intersectObject(mesh);
     if (intersects.length === 0) return;
@@ -54,9 +68,8 @@ controls.addEventListener('change', () => {
     let tiles = +centerTileInfo.z + +centerTileInfo.x + +centerTileInfo.y;
     if (isNaN(tiles)) return;
 
-    for (let _x = centerTileInfo.x - (GRID_SIZE - 2); _x < centerTileInfo.x + (GRID_SIZE - 2); _x++) {
-        for (let _y = centerTileInfo.y - (GRID_SIZE - 2); _y < centerTileInfo.y + (GRID_SIZE - 2); _y++) {
-
+    for (let _x = centerTileInfo.x - (GRID_SIZE - 2); _x < centerTileInfo.x + (GRID_SIZE - 1); _x++) {
+        for (let _y = centerTileInfo.y - (GRID_SIZE - 2); _y < centerTileInfo.y + (GRID_SIZE - 1); _y++) {
             if (!utils.tilecache[centerTileInfo.z.toString()]) {
                 utils.tilecache[centerTileInfo.z.toString()] = {}
             }
@@ -72,20 +85,35 @@ controls.addEventListener('change', () => {
                     .then((geom) => {
                         const pIdx = pending.indexOf(tileStr);
                         lastIn.push({
-                            __z:centerTileInfo.z.toString(),
-                            __x:_x.toString(),
-                            __y: _y.toString()
+                            __z: centerTileInfo.z.toString(),
+                            __x: _x.toString(),
+                            __y: _y.toString(),
+                            vec: new Vector2(+_x, +_y)
                         });
                         pending.splice(pIdx, 1);
-                        //TODO: ADD NAME
-                        //myObject.name = "objectName";
-                        //var object = scene.getObjectByName( "objectName" );
-                        utils.tilecache[centerTileInfo.z.toString()][_x.toString()][_y.toString()] = geom;
-                        addGeojsonAsVerts(geom, ['park', 'residential', 'wood'])
+                        const objName = tileStr.replaceAll('/', '-');
+                        utils.tilecache[centerTileInfo.z.toString()][_x.toString()][_y.toString()] = objName;//geom;
+                        addGeojsonAsVerts(geom, ['park', 'residential', 'wood'], objName)
                     })
-            }else if(lastIn.length > GRID_SIZE*GRID_SIZE){
-                const toPop = lastIn[0]
-                console.log(utils.tilecache[toPop.__z][toPop.__x][toPop.__y])
+            }
+            else {
+                const center = new Vector2(centerTileInfo.x, centerTileInfo.y);
+
+                lastIn = lastIn.sort((a, b) => {
+                    return b.vec.distanceTo(center) - a.vec.distanceTo(center)
+                })
+
+                while (lastIn.length > (GRID_SIZE * GRID_SIZE) + 1) {
+                    const toPop = lastIn[0];
+                    const objNameToRemove = utils.tilecache[toPop.__z][toPop.__x][toPop.__y];
+                    let objToRemove = map.getObjectByName(objNameToRemove);
+
+                    if (objToRemove instanceof THREE.Object3D) {
+                        map.remove(objToRemove)
+                        delete (utils.tilecache[toPop.__z][toPop.__x][toPop.__y]);
+                    }
+                    lastIn.shift();
+                }
             }
         }
     }
@@ -110,22 +138,18 @@ const colors = {
     'residential': '#00f',
     'wood': '#f00'
 }
-let object;
 
- //TODO: MOVE ALL THIS INTO UTILS OR A NEW CLASS
-function addGeojsonAsVerts(geoms, layernames) {
-    //console.log(geoms);
-    // const feature_name = 'park'
-    scene.remove(object);
+
+//TODO: MOVE ALL THIS INTO UTILS OR A NEW CLASS
+function addGeojsonAsVerts(geoms, layernames, objName) {
+    let object = new Object3D();
+    object.name = objName;
     Object.keys(geoms).forEach((featureName) => {
         if (layernames.includes(featureName)) {
             const positions = [];
-            const geom = geoms[featureName]
-            //console.log(featureName)
+            const geom = geoms[featureName];
             geom.forEach((poly) => {
                 for (let idx = 0; idx < poly.triangles.length; idx++) {
-                    // console.log(poly.triangles)
-                    //console.log(poly.data.vertices)
                     const arrIdx = (poly.triangles[idx] - 1) * 2
                     positions.push(poly.data.vertices[arrIdx], 0, -poly.data.vertices[arrIdx + 1])
                 }
@@ -133,17 +157,21 @@ function addGeojsonAsVerts(geoms, layernames) {
                 geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
                 geometry.computeVertexNormals();
 
-                object = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: colors[featureName] }));
-                scene.add(object);
+                let _object = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: colors[featureName] }));
+                object.add(_object)
             })
         }
     })
+    map.add(object);
 
 }
 
 const light = new THREE.PointLight(0xffffff, 100, 100);
 light.position.set(0, 5, 0);
 scene.add(light);
+
+const ambient = new THREE.AmbientLight(0xffffff, .5);
+scene.add(ambient)
 
 function animate() {
 
