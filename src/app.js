@@ -9,7 +9,7 @@ import { Vector2 } from 'three';
 
 const scene = new THREE.Scene();
 let camera = new THREE.PerspectiveCamera(15, window.innerWidth / window.innerHeight, 1, 1000);
-camera.position.set(-73.935242, 20, -40);
+camera.position.set(-73.935242, 7, -40);
 
 
 const raycaster = new THREE.Raycaster();
@@ -39,12 +39,13 @@ let ZOOM = '5';
 let pending = [];
 let lastIn = [];
 let _zoom = ZOOM;
+const GRID_SIZE = 1;
 
 let map = new Object3D();
 scene.add(map)
 controls.addEventListener('change', () => {
     //TODO: MOVE ALL THIS INTO UTILS OR A NEW CLASS
-    _zoom = Math.max(Math.round(utils.valueMap(camera.position.y, 3, 40, 10, 1))-1, 0).toString();
+    _zoom = Math.max(Math.round(utils.valueMap(camera.position.y, 3, 40, 10, 1)) - 1, 0).toString();
     if (_zoom !== ZOOM) {
         ZOOM = _zoom;
         pending = [];
@@ -62,63 +63,18 @@ controls.addEventListener('change', () => {
 
     if (Math.abs(pnt.z) < .01 || Math.abs(pnt.x) < .01) return;
 
-    const GRID_SIZE = 3;
-
     const centerTileInfo = utils.latlngzoom2tileStr(pnt.z * -1, pnt.x, ZOOM);
     let tiles = +centerTileInfo.z + +centerTileInfo.x + +centerTileInfo.y;
     if (isNaN(tiles)) return;
-
-    for (let _x = centerTileInfo.x - (GRID_SIZE - 2); _x < centerTileInfo.x + (GRID_SIZE - 1); _x++) {
-        for (let _y = centerTileInfo.y - (GRID_SIZE - 2); _y < centerTileInfo.y + (GRID_SIZE - 1); _y++) {
-            if (!utils.tilecache[centerTileInfo.z.toString()]) {
-                utils.tilecache[centerTileInfo.z.toString()] = {}
-            }
-
-            if (!utils.tilecache[centerTileInfo.z.toString()][_x.toString()]) {
-                utils.tilecache[centerTileInfo.z.toString()][_x.toString()] = {}
-            }
-
-            const tileStr = `${centerTileInfo.z.toString()}/${_x.toString()}/${_y.toString()}`;
-            if (!utils.tilecache[centerTileInfo.z.toString()][_x.toString()][_y.toString()] && !pending.includes(tileStr)) {
-                pending.push(tileStr);
-                utils.getTile(tileStr)
-                    .then((geom) => {
-                        const pIdx = pending.indexOf(tileStr);
-                        lastIn.push({
-                            __z: centerTileInfo.z.toString(),
-                            __x: _x.toString(),
-                            __y: _y.toString(),
-                            vec: new Vector2(+_x, +_y)
-                        });
-                        pending.splice(pIdx, 1);
-                        const objName = tileStr.replaceAll('/', '-');
-                        utils.tilecache[centerTileInfo.z.toString()][_x.toString()][_y.toString()] = objName;//geom;
-                        addGeojsonAsVerts(geom, ['park', 'residential', 'wood'], objName)
-                    })
-            }
-            else {
-                const center = new Vector2(centerTileInfo.x, centerTileInfo.y);
-
-                lastIn = lastIn.sort((a, b) => {
-                    return b.vec.distanceTo(center) - a.vec.distanceTo(center)
-                })
-
-                while (lastIn.length > (GRID_SIZE * GRID_SIZE) + 1) {
-                    const toPop = lastIn[0];
-                    const objNameToRemove = utils.tilecache[toPop.__z][toPop.__x][toPop.__y];
-                    let objToRemove = map.getObjectByName(objNameToRemove);
-
-                    if (objToRemove instanceof THREE.Object3D) {
-                        map.remove(objToRemove)
-                        delete (utils.tilecache[toPop.__z][toPop.__x][toPop.__y]);
-                    }
-                    lastIn.shift();
-                }
+    if (GRID_SIZE > 1) {
+        for (let _x = centerTileInfo.x - (GRID_SIZE - 2); _x < centerTileInfo.x + (GRID_SIZE - 1); _x++) {
+            for (let _y = centerTileInfo.y - (GRID_SIZE - 2); _y < centerTileInfo.y + (GRID_SIZE - 1); _y++) {
+                getTile(_x, _y, ZOOM);
             }
         }
+    }else{
+        getTile(centerTileInfo.x, centerTileInfo.y, ZOOM);
     }
-
-
 })
 
 const geometry = new THREE.BoxGeometry(360, 0, 180, 12, 1, 6);
@@ -141,11 +97,62 @@ const colors = {
 
 
 //TODO: MOVE ALL THIS INTO UTILS OR A NEW CLASS
-function addGeojsonAsVerts(geoms, layernames, objName) {
+function getTile(x, y, z) {
+    if (!utils.tilecache[z]) {
+        utils.tilecache[z] = {}
+    }
+
+    if (!utils.tilecache[z][x]) {
+        utils.tilecache[z][x] = {}
+    }
+
+    const tileStr = `${z}/${x}/${y}`;
+    if (!utils.tilecache[z][x][y] && !pending.includes(tileStr)) {
+        pending.push(tileStr);
+        utils.getTile(tileStr)
+            .then((geom) => {
+                //If zoom changed in the meantime skip
+                if (ZOOM === z) {
+                    const pIdx = pending.indexOf(tileStr);
+                    lastIn.push({
+                        __z: z,
+                        __x: x,
+                        __y: y,
+                        vec: new Vector2(+x, +y)
+                    });
+                    pending.splice(pIdx, 1);
+                    const objName = tileStr.replaceAll('/', '-');
+                    utils.tilecache[z][x][y] = objName;//geom;
+                    addGeojsonAsVerts(geom, objName);
+                }
+            })
+    }
+    else {
+        const center = new Vector2(x, y);
+
+        lastIn = lastIn.sort((a, b) => {
+            return b.vec.distanceTo(center) - a.vec.distanceTo(center)
+        })
+
+        while (lastIn.length > (GRID_SIZE * GRID_SIZE)) {
+            const toPop = lastIn[0];
+            const objNameToRemove = utils.tilecache[toPop.__z][toPop.__x][toPop.__y];
+            let objToRemove = map.getObjectByName(objNameToRemove);
+
+            if (objToRemove instanceof THREE.Object3D) {
+                map.remove(objToRemove)
+                delete (utils.tilecache[toPop.__z][toPop.__x][toPop.__y]);
+            }
+            lastIn.shift();
+        }
+    }
+}
+
+function addGeojsonAsVerts(geoms, objName) {
     let object = new Object3D();
     object.name = objName;
     Object.keys(geoms).forEach((featureName) => {
-        if (layernames.includes(featureName)) {
+        //if (layernames.includes(featureName)) {
             const positions = [];
             const geom = geoms[featureName];
             geom.forEach((poly) => {
@@ -160,7 +167,7 @@ function addGeojsonAsVerts(geoms, layernames, objName) {
                 let _object = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: colors[featureName] }));
                 object.add(_object)
             })
-        }
+      //  }
     })
     map.add(object);
 
