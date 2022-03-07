@@ -8,7 +8,7 @@ import { Vector2 } from 'three';
 
 
 const scene = new THREE.Scene();
-let camera = new THREE.PerspectiveCamera(15, window.innerWidth / window.innerHeight, 1, 1000);
+let camera = new THREE.PerspectiveCamera(15, window.innerWidth / window.innerHeight, .1, 100);
 camera.position.set(-73.935242, 7, -40);
 
 
@@ -90,9 +90,9 @@ const mesh = new THREE.Mesh(geometry, material)
 controls.target = new Vector3(-73.935242, 0, -40.730610);
 
 const colors = {
-    'park': '#0f0',
+    //'park': '#0f0',
     'residential': '#00f',
-    'wood': '#f00'
+    //'wood': '#f00'
 }
 
 
@@ -152,7 +152,7 @@ function addGeojsonAsVerts(geoms, objName) {
     let object = new Object3D();
     object.name = objName;
     Object.keys(geoms).forEach((featureName) => {
-        //if (layernames.includes(featureName)) {
+        if (colors[featureName]) {
             const positions = [];
             const geom = geoms[featureName];
             geom.forEach((poly) => {
@@ -167,7 +167,7 @@ function addGeojsonAsVerts(geoms, objName) {
                 let _object = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: colors[featureName] }));
                 object.add(_object)
             })
-      //  }
+        }
     })
     map.add(object);
 

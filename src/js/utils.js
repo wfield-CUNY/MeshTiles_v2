@@ -1,10 +1,5 @@
-// var VectorTile = require('@mapbox/vector-tile').VectorTile;
-// var Protobuf = require('pbf');
 import * as vt2geojson from '@mapbox/vt2geojson';
 import earcut from 'earcut';
-import * as simplify from '@turf/simplify';
-
-const SIMPLIFY_VERT_THRESHOLD = 1000;
 
 function lon2tile(lon, zoom) { return (Math.floor((lon + 180) / 360 * Math.pow(2, zoom))); }
 function lat2tile(lat, zoom) { return (Math.floor((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, zoom))); }
@@ -42,16 +37,12 @@ export function getTile(zxy) {
             // console.log(result.features)
             let features = {};
             const coords = result.features.map((f) => f.geometry.coordinates);
-            const needsSimplify = (coords.flat().length > SIMPLIFY_VERT_THRESHOLD)
-
+            
             result.features.forEach((feature) => {
                 features[feature.properties.type] = features[feature.properties.type] || [];
                 if (feature.geometry.type.toLowerCase() !== 'multipolygon') {
                     let _coords = feature.geometry.coordinates;
-                    if (needsSimplify) {
-                        var options = { tolerance: 0.9, highQuality: false, mutate: true };
-                        _coords = simplify.default(feature, options);
-                    }
+                   
                     if (_coords.length > 0) {
                         var data = earcut.flatten(_coords);
                         var triangles = earcut(data.vertices, data.holes, data.dimensions);
